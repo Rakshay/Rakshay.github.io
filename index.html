@@ -1,40 +1,182 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <title>Front End Quiz</title>
-        <meta name="viewport" content="width=device-width">
-        <meta name="description" content="Front End Engineer trivia quiz challenge. Questions about HTML, CSS and JavaScript." />
-        <link rel="stylesheet" href="css/style.css" type="text/css" media="screen">
-        <!--[if IE]>
-            <script src="http://coderesponsible.com/wp-content/themes/cr-2013/js/html5.js"></script>
-        <![endif]-->
-    
-        <script type="text/javascript">
+<html>
+  <head>
+    <title>Simple Map</title>
+    <meta name="viewport" content="initial-scale=1.0">
+    <meta charset="utf-8">
+    <style>
 
-          var _gaq = _gaq || [];
-          _gaq.push(['_setAccount', 'UA-35062160-1']);
-          _gaq.push(['_trackPageview']);
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
 
-          (function() {
-            var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-            ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-            var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-          })();
+      #map {
+        height: 100%;
+      }
 
-        </script>
-    </head>
-    <body>
-        <header>
-            <h1>Front End Quiz</h1>
-            <div id="timer" class="timer"></div>
-            <p><span id="current-number">0</span> of <span id="total-questions"></span> questions</p>
-            <a href="https://github.com/ryanburgess/front-end-quiz"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/38ef81f8aca64bb9a64448d0d70f1308ef5341ab/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f6461726b626c75655f3132313632312e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png"></a>
-        </header>
-        <div id="content">
-            <a href="#" id="start" class="start">Start</a>
-            <h2 id="question" class="question"></h2>
-            <ul id="answers" class="answers"></ul>
-        </div>
-        <script src="js/build/quiz.js" type="text/javascript"></script>
-    </body>
+      .controls {
+        margin-top: 10px;
+        border: 1px solid transparent;
+        border-radius: 2px 0 0 2px;
+        box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        height: 32px;
+        outline: none;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      }
+
+      #pac-input {
+        background-color: #fff;
+        font-family: Roboto;
+        font-size: 15px;
+        font-weight: 300;
+        margin-left: 12px;
+        padding: 0 11px 0 13px;
+        text-overflow: ellipsis;
+        width: 300px;
+      }
+
+      #pac-input:focus {
+        border-color: #4d90fe;
+      }
+
+      .pac-container {
+        font-family: Roboto;
+      }
+
+      #type-selector {
+        color: #fff;
+        background-color: #4d90fe;
+        padding: 5px 11px 0px 11px;
+      }
+
+      #type-selector label {
+        font-family: Roboto;
+        font-size: 13px;
+        font-weight: 300;
+      }
+
+      #target {
+        width: 345px;
+      }
+    </style>
+  </head>
+  <body>
+    <input id="pac-input" class="controls" type="text" placeholder="Search Box">
+    <div id="map"></div>
+    <script>
+      function initMap() {
+
+        var gridLatLng = new google.maps.LatLng(13.11, 80.17),
+            mapOptions = {
+              zoom: 12,
+              center: gridLatLng,
+              mapTypeId: google.maps.MapTypeId.ROADMAP
+            },
+            top = 13.12,
+            left = 80.16,
+            bottom = 13.10,
+            right = 80.18,
+            grid = {
+              nw: new google.maps.LatLng(13.102, 80.16),
+              sw: new google.maps.LatLng(13.10, 80.16),
+              se: new google.maps.LatLng(13.10, 80.162),
+              ne: new google.maps.LatLng(13.102, 80.162)
+            },
+            gridCoords = [grid.nw, grid.sw, grid.se, grid.ne],
+            gridPolygon = new google.maps.Polygon({
+              paths: gridCoords,
+              strokeColor: "#FF3366",
+              strokeOpacity: 0.8,
+              strokeWeight: 2,
+              fillColor: "#FF3366",
+              fillOpacity: 0.35
+            }),
+            subGridPolygon,
+            subGrid,
+            map = new google.maps.Map(document.getElementById("map"), mapOptions);
+
+        // Create the search box and link it to the UI element.
+        var input = document.getElementById('pac-input');
+        var searchBox = new google.maps.places.SearchBox(input);
+        map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
+
+        // Bias the SearchBox results towards current map's viewport.
+        map.addListener('bounds_changed', function() {
+          searchBox.setBounds(map.getBounds());
+        });
+
+        var markers = [];
+        // Listen for the event fired when the user selects a prediction and retrieve
+        // more details for that place.
+        searchBox.addListener('places_changed', function() {
+          var places = searchBox.getPlaces();
+
+          if (places.length == 0) {
+            return;
+          }
+
+          // Clear out the old markers.
+          markers.forEach(function(marker) {
+            marker.setMap(null);
+          });
+          markers = [];
+
+          // For each place, get the icon, name and location.
+          var bounds = new google.maps.LatLngBounds();
+          places.forEach(function(place) {
+            var icon = {
+              url: place.icon,
+              size: new google.maps.Size(71, 71),
+              origin: new google.maps.Point(0, 0),
+              anchor: new google.maps.Point(17, 34),
+              scaledSize: new google.maps.Size(25, 25)
+            };
+
+            // Create a marker for each place.
+            markers.push(new google.maps.Marker({
+              map: map,
+              icon: icon,
+              title: place.name,
+              position: place.geometry.location
+            }));
+
+            if (place.geometry.viewport) {
+              // Only geocodes have viewport.
+              bounds.union(place.geometry.viewport);
+            } else {
+              bounds.extend(place.geometry.location);
+            }
+          });
+          map.fitBounds(bounds);
+        });
+
+        for (i = 1; i < 11; i++) {
+          for (j = 1; j < 11; j ++) {
+            subGrid = {
+              nw: new google.maps.LatLng(bottom + (j * 0.002), left + ((i - 1) * 0.002)),
+              sw: new google.maps.LatLng(bottom + ((j - 1) * 0.002), left + ((i - 1) * 0.002)),
+              se: new google.maps.LatLng(bottom + ((j - 1) * 0.002), left + (i * 0.002)),
+              ne: new google.maps.LatLng(bottom + (j * 0.002), left + (i * 0.002))
+            };
+            subGridPolygon = new google.maps.Polygon({
+              paths: [subGrid.nw, subGrid.sw, subGrid.se, subGrid.ne],
+              strokeColor: "#FF3366",
+              strokeOpacity: 0.8,
+              strokeWeight: 2,
+              fillColor: "#FF3366",
+              fillOpacity: 0.35
+            });
+            subGridPolygon.setMap(map);
+          }
+        }
+
+        // gridPolygon.setMap(map);
+      }
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?callback=initMap&libraries=places"
+    async defer></script>
+  </body>
 </html>
